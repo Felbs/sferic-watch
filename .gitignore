@@ -1,0 +1,6 @@
+lab/
+*.c64
+*.cs16
+*.npy
+__pycache__/
+*.pyc

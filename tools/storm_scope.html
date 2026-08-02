@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>stormTuna</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --bg:#06070c; --panel:#0c0e16; --edge:#1c2130; --ink:#dfe3f0;
+    --muted:#8189a3; --faint:#4a5168; --bolt:#ffd24d; --bolt-dim:rgba(255,210,77,.25);
+    --ok:#6ee7a0; --warn:#ffc966; --err:#ff7a76; --grid:rgba(255,210,77,.10);
+  }
+  * { box-sizing:border-box; margin:0; padding:0 }
+  body { background:var(--bg); color:var(--ink);
+         font:13px/1.5 Consolas,"Cascadia Mono",Menlo,monospace;
+         max-width:1100px; margin:0 auto; padding:18px }
+  h1 { font-size:16px; letter-spacing:.28em } h1 b{ color:var(--bolt) }
+  .sub { color:var(--muted); font-size:11px; margin-bottom:14px }
+  #alert { display:none; border:1px solid var(--err); color:var(--err);
+           background:var(--panel); padding:8px 14px; margin:10px 0;
+           letter-spacing:.06em }
+  #tiles { display:grid; grid-template-columns:repeat(5,1fr); gap:1px;
+           background:var(--edge); border:1px solid var(--edge); margin:12px 0 }
+  .tile { background:var(--panel); padding:10px 8px; text-align:center }
+  .tile .v { font-size:22px; font-weight:700 }
+  .tile .l { font-size:9px; letter-spacing:.14em; color:var(--muted); margin-top:2px }
+  .card { border:1px solid var(--edge); background:var(--panel);
+          margin:12px 0; padding:10px 14px }
+  .card h2 { font-size:11px; letter-spacing:.18em; color:var(--muted);
+             margin-bottom:8px }
+  .card .note { color:var(--faint); font-size:10.5px; margin-top:6px }
+  svg text { fill:var(--muted); font:10px Consolas,monospace }
+  footer { color:var(--faint); font-size:10px; margin-top:16px }
+</style>
+</head>
+<body>
+<h1>STORM<b>TUNA</b></h1>
+<div class="sub">lightning is the transmitter we don't own &mdash;
+  rate &middot; range &middot; the ionosphere's flinch</div>
+<div id="alert"></div>
+<div id="tiles">
+  <div class="tile"><div class="v" id="t_rate">&ndash;</div><div class="l">IMPULSES/MIN</div></div>
+  <div class="tile"><div class="v" id="t_sky">&ndash;</div><div class="l">SKY %</div></div>
+  <div class="tile"><div class="v" id="t_tweeks">&ndash;</div><div class="l">TWEEKS</div></div>
+  <div class="tile"><div class="v" id="t_h">&ndash;</div><div class="l">CEILING KM</div></div>
+  <div class="tile"><div class="v" id="t_leg">&ndash;</div><div class="l">LAST LEG</div></div>
+</div>
+<div class="card">
+  <h2>INTENSITY &mdash; impulses/min per leg</h2>
+  <svg id="rate" width="100%" height="150"></svg>
+  <div class="note">solid marks = sky-dominated legs; hollow = mains-suspect
+    (power-line comb &gt; 50%). A sudden 2&times; jump is the severe-weather
+    precursor &mdash; the banner fires on it.</div>
+</div>
+<div class="card">
+  <h2>RANGE &mdash; tweek dispersion distances (km) per leg</h2>
+  <svg id="range" width="100%" height="150"></svg>
+  <div class="note">one loop antenna = honest range only, no bearing.
+    Distances need dispersion, so these are the DISTANT strokes; the local
+    cell shows in rate, not here.</div>
+</div>
+<div class="card">
+  <h2>IONOSPHERE WATCH &mdash; VLF carriers, latest leg
+    <span id="tracestamp"></span></h2>
+  <svg id="carriers" width="100%" height="170"></svg>
+  <div class="note">NAA 24.0 (solid) / NLK 24.8 / NML 25.2 kHz. A step
+    time-aligned with a strong sferic = an Early VLF event: lightning
+    denting the D-layer over the path. Candidates are hunted offline at
+    2 ms resolution.</div>
+</div>
+<footer id="foot">waiting for session data &hellip;</footer>
+<script>
+"use strict";
+const NS = "http://www.w3.org/2000/svg";
+function clearSvg(s){ while(s.firstChild) s.removeChild(s.firstChild); }
+function el(s,n,at){ const e=document.createElementNS(NS,n);
+  for(const k in at) e.setAttribute(k,at[k]); s.appendChild(e); return e; }
+
+function drawSeries(svg, xs, ys, opts){
+  clearSvg(svg);
+  const W = svg.clientWidth, H = svg.clientHeight, P = 34;
+  if (!xs.length) { el(svg,"text",{x:P,y:H/2}).textContent = "no data yet"; return; }
+  const ymax = Math.max(...ys.filter(v=>v!=null)) * 1.15 || 1;
+  const X = i => P + (xs.length===1?0:(i/(xs.length-1)))*(W-P-10);
+  const Y = v => H-18 - (v/ymax)*(H-30);
+  for (let g=0; g<=3; g++){
+    const gy = Y(ymax*g/3/1.15*1.15), gv = ymax*g/3;
+    el(svg,"line",{x1:P,y1:gy,x2:W-10,y2:gy,stroke:"var(--grid)"});
+    el(svg,"text",{x:2,y:gy+3}).textContent = gv>=1000?(gv/1000).toFixed(1)+"k":Math.round(gv);
+  }
+  let d = "";
+  ys.forEach((v,i)=>{ if(v==null) return;
+    d += (d?"L":"M") + X(i).toFixed(1) + " " + Y(v).toFixed(1) + " "; });
+  el(svg,"path",{d,fill:"none",stroke:"var(--bolt)","stroke-width":2});
+  ys.forEach((v,i)=>{ if(v==null) return;
+    const solid = !opts.hollow || !opts.hollow[i];
+    el(svg,"circle",{cx:X(i),cy:Y(v),r:4,
+      fill: solid ? "var(--bolt)" : "var(--panel)",
+      stroke:"var(--bolt)","stroke-width":1.5});
+  });
+  xs.forEach((x,i)=>{ if (xs.length<=10 || i%Math.ceil(xs.length/10)===0)
+    el(svg,"text",{x:X(i)-12,y:H-4}).textContent = x; });
+}
+
+function drawScatter(svg, legs){
+  clearSvg(svg);
+  const W = svg.clientWidth, H = svg.clientHeight, P = 40;
+  const pts = [];
+  legs.forEach((g,i)=> (g.d_km||[]).forEach(d=> pts.push([i,d])));
+  if (!pts.length){ el(svg,"text",{x:P,y:H/2}).textContent =
+    "no dispersed tweeks yet (they need distance + favor nighttime)"; return; }
+  const ymax = Math.max(...pts.map(p=>p[1]))*1.1;
+  const X = i => P + (legs.length===1?0:(i/(legs.length-1)))*(W-P-10);
+  const Y = v => H-18 - (v/ymax)*(H-30);
+  for (let g=0; g<=3; g++){
+    const gv = ymax*g/3;
+    el(svg,"line",{x1:P,y1:Y(gv),x2:W-10,y2:Y(gv),stroke:"var(--grid)"});
+    el(svg,"text",{x:2,y:Y(gv)+3}).textContent = Math.round(gv);
+  }
+  pts.forEach(p=> el(svg,"circle",{cx:X(p[0]),cy:Y(p[1]),r:3,
+    fill:"var(--bolt-dim)",stroke:"var(--bolt)"}));
+  legs.forEach((g,i)=>{ if (legs.length<=10 || i%Math.ceil(legs.length/10)===0)
+    el(svg,"text",{x:X(i)-12,y:H-4}).textContent = g.hhmm; });
+}
+
+function drawCarriers(svg, trace){
+  clearSvg(svg);
+  const W = svg.clientWidth, H = svg.clientHeight, P = 40;
+  if (!trace){ el(svg,"text",{x:P,y:H/2}).textContent = "no trace yet"; return; }
+  const names = Object.keys(trace.series);
+  const all = names.flatMap(n=>trace.series[n]);
+  const ymax = Math.max(...all)*1.15 || 1e-6;
+  const X = i => P + (i/(trace.t.length-1))*(W-P-10);
+  const Y = v => H-18 - (v/ymax)*(H-30);
+  const styles = [["var(--bolt)",2,""],["#9fd0ff",1.2,"4 3"],["#c5a3ff",1.2,"2 3"]];
+  names.forEach((n,k)=>{
+    let d="";
+    trace.series[n].forEach((v,i)=>{ d += (d?"L":"M")+X(i).toFixed(1)+" "+Y(v).toFixed(1)+" "; });
+    el(svg,"path",{d,fill:"none",stroke:styles[k][0],
+      "stroke-width":styles[k][1],"stroke-dasharray":styles[k][2]});
+    el(svg,"text",{x:W-90,y:14+12*k}).textContent = n.replace("_"," ");
+    el(svg,"line",{x1:W-110,y1:10+12*k,x2:W-96,y2:10+12*k,
+      stroke:styles[k][0],"stroke-width":styles[k][1],
+      "stroke-dasharray":styles[k][2]});
+  });
+  for (const frac of [0,0.5,1])
+    el(svg,"text",{x:P+(W-P-10)*frac-8,y:H-4}).textContent =
+      Math.round(trace.t[Math.floor((trace.t.length-1)*frac)]) + "s";
+}
+
+async function poll(){
+  try{
+    const d = await (await fetch("/storm.json")).json();
+    const legs = d.legs;
+    const last = legs[legs.length-1];
+    if (last){
+      document.getElementById("t_rate").textContent = Math.round(last.rate||0);
+      document.getElementById("t_sky").textContent =
+        last.pl_frac==null ? "–" : Math.round((1-last.pl_frac)*100);
+      document.getElementById("t_tweeks").textContent =
+        legs.reduce((s,g)=>s+(g.n_tweeks||0),0);
+      const hs = legs.map(g=>g.h_km).filter(Boolean);
+      document.getElementById("t_h").textContent = hs.length?hs[hs.length-1]:"–";
+      document.getElementById("t_leg").textContent = last.hhmm;
+    }
+    drawSeries(document.getElementById("rate"),
+      legs.map(g=>g.hhmm), legs.map(g=>g.rate),
+      {hollow: legs.map(g=>g.pl_frac!=null && g.pl_frac>=0.5)});
+    drawScatter(document.getElementById("range"), legs);
+    drawCarriers(document.getElementById("carriers"), d.trace);
+    if (d.trace) document.getElementById("tracestamp").textContent =
+      " · leg " + d.trace.stamp.slice(0,2)+":"+d.trace.stamp.slice(2,4);
+    const al = document.getElementById("alert");
+    if (d.alert && d.alert.jump){ al.style.display="block";
+      al.textContent = "⚡ " + d.alert.msg; }
+    else al.style.display="none";
+    document.getElementById("foot").textContent =
+      `session ${d.session} · ${legs.length} legs · polls every 5 s · ` +
+      "range has no bearing by design (one loop antenna) - honesty over decoration";
+  }catch(e){
+    document.getElementById("foot").textContent = "panel offline? " + e;
+  }
+}
+setInterval(poll, 5000); poll();
+</script>
+</body>
+</html>

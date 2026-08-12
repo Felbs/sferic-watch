@@ -3,6 +3,8 @@
 **Single-station storm sensing by radio — lightning is the transmitter you
 don't own.**
 
+**Project site:** [felbs.software](https://felbs.software) · **Contact:** [E@felbs.software](mailto:E@felbs.software)
+
 Born 2026-08-02, mid-thunderstorm, from the
 [Software-TV-Tuner](https://github.com/Felbs/Software-TV-Tuner) lineage
 (TV Tuna → [Radio Tuna](https://github.com/Felbs/gr-radiotuna) →

@@ -1,4 +1,4 @@
-"""storm_panel.py - stormTuna's live storm scope (http://127.0.0.1:8647).
+"""storm_panel.py - sferic-watch's live storm scope (http://127.0.0.1:8647).
 
 Reads a storm session directory (the VLF leg outputs of a sferic
 capture chain) and serves the storm's story as it unfolds - ZERO radio

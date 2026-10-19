@@ -1,4 +1,4 @@
-# stormTuna ⚡📡
+# sferic-watch ⚡📡
 
 **Single-station storm sensing by radio — lightning is the transmitter you
 don't own.**
@@ -10,7 +10,7 @@ Born 2026-08-02, mid-thunderstorm, from the
 (TV Tuna → [Radio Tuna](https://github.com/Felbs/gr-radiotuna) →
 [wxTuna](https://github.com/Felbs/wxTuna) →
 [aeroTuna](https://github.com/Felbs/aeroTuna) →
-[dlayer-diary](https://github.com/Felbs/dlayer-diary) → stormTuna).
+[dlayer-diary](https://github.com/Felbs/dlayer-diary) → sferic-watch, formerly stormTuna).
 Every lightning stroke fires a broadband VLF impulse into the
 Earth-ionosphere waveguide. One SDR and one loop antenna turn that into
 four instruments:

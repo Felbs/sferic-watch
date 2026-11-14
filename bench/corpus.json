@@ -1,0 +1,1019 @@
+{
+ "about": "Frozen regression corpus for sferic-watch (plan step 1). Paths are relative to the user's home; no station position anywhere. Captures: 600 s interleaved int16 IQ, 62.5 kS/s, centred 15 kHz, discone (Antenna C), AGC off, IFGR 40. Labels: census.csv (3 x 20 s slices at 60/300/540 s), h2h table (whole-file runs), roles from the judged plan.",
+ "onair_bin": "~/.local/share/sferic-watch/onair_sferics_h2h",
+ "onair_bin_note": "Install location for the h2h harness binary (our onair_sferics_h2h.cpp linked against OnAir's libdect2core.a, GPL-3): built locally, never committed, run as an external program only. Lookup order: $SFERIC_ONAIR_BIN, onair_sferics_h2h on $PATH, then this path. Build steps in bench/README.md.",
+ "captures": [
+  {
+   "id": "20261019_vlf_1500Z",
+   "path": "~/dlayer_run/data/vlf/20261019/vlf_1500Z.cs16",
+   "golden": true,
+   "roles": [
+    "clean_day",
+    "bank_source"
+   ],
+   "note": "clean day; source of the 386-cut real bank",
+   "census": {
+    "solar_class": "day",
+    "hum_status": "clean",
+    "hum_slices_of_3": 0,
+    "ivl_share_120hz": 0.0,
+    "v2_rate_per_s": 0.8,
+    "floor_dbfs_hz": -111.1
+   },
+   "h2h": {
+    "onair_bp_per_min": 56.3,
+    "onair_bp_mains_rejected": 0,
+    "onair_bp_comb": 0.17,
+    "july_per_min": 44.4,
+    "july_comb": 0.21
+   },
+   "hum_on_s": [],
+   "hum_frac": 0.0,
+   "buzz_suspect_s": [],
+   "hum_label_complete": true
+  },
+  {
+   "id": "20261105_vlf_1500Z",
+   "path": "~/dlayer_run/data/vlf/20261105/vlf_1500Z.cs16",
+   "golden": true,
+   "roles": [
+    "clean_day",
+    "inj_piece"
+   ],
+   "note": "clean day",
+   "census": {
+    "solar_class": "day",
+    "hum_status": "clean",
+    "hum_slices_of_3": 0,
+    "ivl_share_120hz": 0.0,
+    "v2_rate_per_s": 0.7,
+    "floor_dbfs_hz": -112.3
+   },
+   "h2h": {
+    "onair_bp_per_min": 37.8,
+    "onair_bp_mains_rejected": 0,
+    "onair_bp_comb": 0.14,
+    "july_per_min": 31.4,
+    "july_comb": 0.19
+   },
+   "hum_on_s": [],
+   "hum_frac": 0.0,
+   "buzz_suspect_s": [],
+   "hum_label_complete": true
+  },
+  {
+   "id": "20261103_vlf_2100Z",
+   "path": "~/dlayer_run/data/vlf/20261103/vlf_2100Z.cs16",
+   "golden": true,
+   "roles": [
+    "clean_evening"
+   ],
+   "note": "clean, busy pre-dusk sky (OnAir+BP 233/min)",
+   "census": {
+    "solar_class": "day",
+    "hum_status": "clean",
+    "hum_slices_of_3": 0,
+    "ivl_share_120hz": 0.0,
+    "v2_rate_per_s": 2.55,
+    "floor_dbfs_hz": -111.7
+   },
+   "h2h": {
+    "onair_bp_per_min": 233.5,
+    "onair_bp_mains_rejected": 0,
+    "onair_bp_comb": 0.25,
+    "july_per_min": 185.8,
+    "july_comb": 0.28
+   },
+   "hum_on_s": [],
+   "hum_frac": 0.0,
+   "buzz_suspect_s": [],
+   "hum_label_complete": true
+  },
+  {
+   "id": "20261105_vlf_2000Z",
+   "path": "~/dlayer_run/data/vlf/20261105/vlf_2000Z.cs16",
+   "golden": true,
+   "roles": [
+    "sparse_buzz",
+    "inj_piece"
+   ],
+   "note": "sparse buzz: 33-58 ms gaps, OnAir mains=0 but 90% of intervals on the comb",
+   "census": {
+    "solar_class": "day",
+    "hum_status": "clean",
+    "hum_slices_of_3": 0,
+    "ivl_share_120hz": 0.1226,
+    "v2_rate_per_s": 0.2,
+    "floor_dbfs_hz": -112.7
+   },
+   "h2h": {
+    "onair_bp_per_min": 165.4,
+    "onair_bp_mains_rejected": 0,
+    "onair_bp_comb": 0.9,
+    "july_per_min": 343.0,
+    "july_comb": 0.95
+   },
+   "hum_on_s": [],
+   "hum_frac": 0.0,
+   "hum_label_note": "sparse buzz all file long (July 343/min, comb share 0.95; OnAir+BP 165/min, comb 0.90) - below the dense 20/s cut, so hum_on_s is empty; buzz_suspect_s carries it (530 s) and hum_label_complete is false: do not read hum_on_s as clean",
+   "buzz_suspect_s": [
+    [
+     0,
+     510
+    ],
+    [
+     560,
+     580
+    ]
+   ],
+   "hum_label_complete": false
+  },
+  {
+   "id": "20261105_vlf_0430Z",
+   "path": "~/dlayer_run/data/vlf/20261105/vlf_0430Z.cs16",
+   "golden": true,
+   "roles": [
+    "hum_switch"
+   ],
+   "note": "hum switches on inside the file at ~450 s",
+   "census": {
+    "solar_class": "night",
+    "hum_status": "partial",
+    "hum_slices_of_3": 1,
+    "ivl_share_120hz": 0.0702,
+    "v2_rate_per_s": 0.65,
+    "floor_dbfs_hz": -112.4
+   },
+   "h2h": {
+    "onair_bp_per_min": 97.4,
+    "onair_bp_mains_rejected": 12987,
+    "onair_bp_comb": 0.71,
+    "july_per_min": 1405.4,
+    "july_comb": 0.98
+   },
+   "hum_on_s": [
+    [
+     450,
+     600
+    ]
+   ],
+   "hum_frac": 0.25,
+   "buzz_suspect_s": [
+    [
+     80,
+     90
+    ],
+    [
+     110,
+     120
+    ],
+    [
+     180,
+     190
+    ],
+    [
+     200,
+     230
+    ],
+    [
+     240,
+     280
+    ],
+    [
+     290,
+     380
+    ],
+    [
+     390,
+     450
+    ]
+   ],
+   "hum_label_complete": false,
+   "hum_label_note": "dense buzz from 450 s; sparse comb-locked edges (buzz_suspect_s, 250 s) already from ~80 s - the switch-on is gradual"
+  },
+  {
+   "id": "20261106_vlf_0230Z",
+   "path": "~/dlayer_run/data/vlf/20261106/vlf_0230Z.cs16",
+   "golden": true,
+   "roles": [
+    "hum_switch"
+   ],
+   "note": "hum switches on inside the file at ~90 s",
+   "census": {
+    "solar_class": "night",
+    "hum_status": "partial",
+    "hum_slices_of_3": 2,
+    "ivl_share_120hz": 0.9418,
+    "v2_rate_per_s": 0.4,
+    "floor_dbfs_hz": -112.3
+   },
+   "h2h": {
+    "onair_bp_per_min": 24.0,
+    "onair_bp_mains_rejected": 47399,
+    "onair_bp_comb": 0.37,
+    "july_per_min": 4755.7,
+    "july_comb": 1.0
+   },
+   "hum_on_s": [
+    [
+     90,
+     600
+    ]
+   ],
+   "hum_frac": 0.85,
+   "buzz_suspect_s": [],
+   "hum_label_complete": true
+  },
+  {
+   "id": "20261104_vlf_0100Z",
+   "path": "~/dlayer_run/data/vlf/20261104/vlf_0100Z.cs16",
+   "golden": true,
+   "roles": [
+    "steady_hum",
+    "second_train",
+    "inj_piece"
+   ],
+   "note": "steady hum plus a weaker second train ~4 ms off; leaks 76-99/min under every filter",
+   "census": {
+    "solar_class": "night",
+    "hum_status": "hum",
+    "hum_slices_of_3": 3,
+    "ivl_share_120hz": 0.9384,
+    "v2_rate_per_s": 0.4,
+    "floor_dbfs_hz": -112.5
+   },
+   "h2h": {
+    "onair_bp_per_min": 99.2,
+    "onair_bp_mains_rejected": 56879,
+    "onair_bp_comb": 0.85,
+    "july_per_min": 5695.4,
+    "july_comb": 1.0
+   },
+   "hum_on_s": [
+    [
+     0,
+     600
+    ]
+   ],
+   "hum_frac": 1.0,
+   "buzz_suspect_s": [],
+   "hum_label_complete": true
+  },
+  {
+   "id": "20261106_vlf_0500Z",
+   "path": "~/dlayer_run/data/vlf/20261106/vlf_0500Z.cs16",
+   "golden": true,
+   "roles": [
+    "steady_hum"
+   ],
+   "note": "steady night hum, OnAir+BP 241/min residue",
+   "census": {
+    "solar_class": "night",
+    "hum_status": "hum",
+    "hum_slices_of_3": 3,
+    "ivl_share_120hz": 0.8967,
+    "v2_rate_per_s": 1.35,
+    "floor_dbfs_hz": -110.6
+   },
+   "h2h": {
+    "onair_bp_per_min": 241.5,
+    "onair_bp_mains_rejected": 60863,
+    "onair_bp_comb": 0.37,
+    "july_per_min": 6114.0,
+    "july_comb": 1.0
+   },
+   "hum_on_s": [
+    [
+     0,
+     600
+    ]
+   ],
+   "hum_frac": 1.0,
+   "buzz_suspect_s": [],
+   "hum_label_complete": true
+  },
+  {
+   "id": "20261106_vlf_2200Z",
+   "path": "~/dlayer_run/data/vlf/20261106/vlf_2200Z.cs16",
+   "golden": true,
+   "roles": [
+    "steady_hum",
+    "dusk_onset",
+    "inj_piece"
+   ],
+   "note": "first hum slot after dusk onset (21:30 clean, 22:00 hum)",
+   "census": {
+    "solar_class": "twilight_dusk",
+    "hum_status": "hum",
+    "hum_slices_of_3": 3,
+    "ivl_share_120hz": 0.957,
+    "v2_rate_per_s": 0.45,
+    "floor_dbfs_hz": -111.5
+   },
+   "h2h": {
+    "onair_bp_per_min": 53.5,
+    "onair_bp_mains_rejected": 57106,
+    "onair_bp_comb": 0.19,
+    "july_per_min": 5721.4,
+    "july_comb": 1.0
+   },
+   "hum_on_s": [
+    [
+     0,
+     600
+    ]
+   ],
+   "hum_frac": 1.0,
+   "buzz_suspect_s": [],
+   "hum_label_complete": true
+  },
+  {
+   "id": "20261020_vlf_0800Z",
+   "path": "~/dlayer_run/data/vlf/20261020/vlf_0800Z.cs16",
+   "golden": true,
+   "roles": [
+    "steady_hum",
+    "inj_piece"
+   ],
+   "note": "steady hum",
+   "census": {
+    "solar_class": "night",
+    "hum_status": "hum",
+    "hum_slices_of_3": 3,
+    "ivl_share_120hz": 0.9152,
+    "v2_rate_per_s": 2.1,
+    "floor_dbfs_hz": -110.4
+   },
+   "h2h": {
+    "onair_bp_per_min": 122.1,
+    "onair_bp_mains_rejected": 51122,
+    "onair_bp_comb": 0.21,
+    "july_per_min": 5152.6,
+    "july_comb": 1.0
+   },
+   "hum_on_s": [
+    [
+     0,
+     600
+    ]
+   ],
+   "hum_frac": 1.0,
+   "buzz_suspect_s": [],
+   "hum_label_complete": true
+  },
+  {
+   "id": "20261020_vlf_1130Z",
+   "path": "~/dlayer_run/data/vlf/20261020/vlf_1130Z.cs16",
+   "golden": true,
+   "roles": [
+    "steady_hum",
+    "dawn"
+   ],
+   "note": "dawn twilight hum, last slot before switch-off",
+   "census": {
+    "solar_class": "twilight_dawn",
+    "hum_status": "hum",
+    "hum_slices_of_3": 3,
+    "ivl_share_120hz": 0.9438,
+    "v2_rate_per_s": 0.6,
+    "floor_dbfs_hz": -111.3
+   },
+   "h2h": {
+    "onair_bp_per_min": 65.5,
+    "onair_bp_mains_rejected": 53995,
+    "onair_bp_comb": 0.16,
+    "july_per_min": 5392.9,
+    "july_comb": 1.0
+   },
+   "hum_on_s": [
+    [
+     0,
+     600
+    ]
+   ],
+   "hum_frac": 1.0,
+   "buzz_suspect_s": [],
+   "hum_label_complete": true
+  },
+  {
+   "id": "20261106_vlf_1000Z",
+   "path": "~/dlayer_run/data/vlf/20261106/vlf_1000Z.cs16",
+   "golden": true,
+   "roles": [
+    "intermittent_hum",
+    "raised_floor",
+    "inj_piece"
+   ],
+   "note": "intermittent buzz inside the 11-06 raised-floor window",
+   "census": {
+    "solar_class": "night",
+    "hum_status": "clean",
+    "hum_slices_of_3": 0,
+    "ivl_share_120hz": 0.1075,
+    "v2_rate_per_s": 1.8,
+    "floor_dbfs_hz": -107.0
+   },
+   "h2h": {
+    "onair_bp_per_min": 621.2,
+    "onair_bp_mains_rejected": 1950,
+    "onair_bp_comb": 0.37,
+    "july_per_min": 808.9,
+    "july_comb": 0.56
+   },
+   "hum_on_s": [
+    [
+     590,
+     600
+    ]
+   ],
+   "hum_frac": 0.017,
+   "hum_label_note": "intermittent buzz (July 809/min, comb 0.56; OnAir rejected 1,950 as mains) mostly below the dense 20/s cut; buzz_suspect_s carries 250 s of it and hum_label_complete is false",
+   "buzz_suspect_s": [
+    [
+     0,
+     80
+    ],
+    [
+     90,
+     100
+    ],
+    [
+     110,
+     120
+    ],
+    [
+     290,
+     350
+    ],
+    [
+     360,
+     390
+    ],
+    [
+     400,
+     420
+    ],
+    [
+     450,
+     460
+    ],
+    [
+     470,
+     480
+    ],
+    [
+     500,
+     510
+    ],
+    [
+     580,
+     590
+    ]
+   ],
+   "hum_label_complete": false
+  },
+  {
+   "id": "20261106_vlf_0830Z",
+   "path": "~/dlayer_run/data/vlf/20261106/vlf_0830Z.cs16",
+   "golden": true,
+   "roles": [
+    "raised_floor",
+    "night_clean_gap"
+   ],
+   "note": "raised floor (-106.7 dBFS/Hz, worst of the archive), clean gap between hum slots",
+   "census": {
+    "solar_class": "night",
+    "hum_status": "clean",
+    "hum_slices_of_3": 0,
+    "ivl_share_120hz": 0.0044,
+    "v2_rate_per_s": 3.5,
+    "floor_dbfs_hz": -106.7
+   },
+   "h2h": null,
+   "hum_on_s": [
+    [
+     0,
+     60
+    ]
+   ],
+   "hum_frac": 0.1,
+   "hum_label_note": "buzz in the first 60 s only (sidecar's first-30 s 102 edges/s, hum 0.96); census slices at 60/300/540 s saw it clean",
+   "buzz_suspect_s": [],
+   "hum_label_complete": true
+  },
+  {
+   "id": "20261106_vlf_2000Z",
+   "path": "~/dlayer_run/data/vlf/20261106/vlf_2000Z.cs16",
+   "golden": true,
+   "roles": [
+    "daytime_hum"
+   ],
+   "note": "the one daytime hum episode",
+   "census": {
+    "solar_class": "day",
+    "hum_status": "hum",
+    "hum_slices_of_3": 3,
+    "ivl_share_120hz": 0.79,
+    "v2_rate_per_s": 2.35,
+    "floor_dbfs_hz": -111.8
+   },
+   "h2h": null,
+   "hum_on_s": [
+    [
+     0,
+     600
+    ]
+   ],
+   "hum_frac": 1.0,
+   "buzz_suspect_s": [],
+   "hum_label_complete": true
+  },
+  {
+   "id": "20261114_vlf_0212Z",
+   "path": "~/storm_live/vlf_20261114_0212Z.cs16",
+   "golden": false,
+   "roles": [
+    "live_tonight",
+    "steady_hum"
+   ],
+   "note": "tonight's 600 s capture, same recipe (sidecar 73.8 edges/s, hum120 0.91); spot checks only, not in the frozen means",
+   "census": null,
+   "h2h": null,
+   "hum_on_s": [
+    [
+     0,
+     600
+    ]
+   ],
+   "hum_frac": 1.0,
+   "buzz_suspect_s": [],
+   "hum_label_complete": true
+  }
+ ],
+ "injection": {
+  "piece_t0_s": 200.0,
+  "piece_secs": 120.0,
+  "pieces": [
+   "20261020_vlf_0800Z",
+   "20261104_vlf_0100Z",
+   "20261105_vlf_1500Z",
+   "20261105_vlf_2000Z",
+   "20261106_vlf_1000Z",
+   "20261106_vlf_2200Z"
+  ],
+  "piece_class": {
+   "20261020_vlf_0800Z": "steady_hum",
+   "20261104_vlf_0100Z": "steady_hum",
+   "20261105_vlf_1500Z": "clean",
+   "20261105_vlf_2000Z": "intermittent",
+   "20261106_vlf_1000Z": "intermittent",
+   "20261106_vlf_2200Z": "steady_hum"
+  },
+  "bank": {
+   "source": "~/dlayer_run/data/vlf/20261019/vlf_1500Z.cs16",
+   "n": 386,
+   "cut_len_samples": 1000,
+   "onset_in_cut_s": 0.004,
+   "selection": "July rule (A) events in 1-598 s that OnAir+BP (mains on) also found within 2 ms (h2h/inject.py); cut starts 4 ms before the A onset. Biased toward A and OnAir: use the synth set for unbiased recall.",
+   "cut_start_samples": [
+    375962,
+    435717,
+    611800,
+    749789,
+    809360,
+    883489,
+    1070601,
+    1479072,
+    1719692,
+    2103273,
+    2143702,
+    2286118,
+    2342398,
+    2461184,
+    2462866,
+    2465043,
+    2467763,
+    2512061,
+    2612860,
+    2616890,
+    2618507,
+    2621367,
+    2623664,
+    2625983,
+    2628521,
+    2725262,
+    2860181,
+    2871388,
+    2874409,
+    2923869,
+    3116292,
+    3511425,
+    3913239,
+    4195797,
+    4278678,
+    4286652,
+    4457477,
+    5023702,
+    5212546,
+    5450291,
+    5451459,
+    5467471,
+    5478738,
+    5484610,
+    5750462,
+    6163965,
+    6196034,
+    6377446,
+    6382378,
+    6497877,
+    6514220,
+    6645659,
+    6676425,
+    6765495,
+    6889570,
+    6922080,
+    7274699,
+    7368042,
+    7396224,
+    7409961,
+    7486066,
+    7606450,
+    7665903,
+    7668682,
+    7721635,
+    7742583,
+    8059882,
+    8167938,
+    8376292,
+    8500623,
+    8880495,
+    8892605,
+    9008770,
+    9198519,
+    9201352,
+    9255793,
+    9667959,
+    9839135,
+    9842717,
+    9853008,
+    9903632,
+    9942096,
+    9971135,
+    10024742,
+    10177186,
+    10293048,
+    10302424,
+    10308040,
+    10309720,
+    10311538,
+    10337040,
+    10342026,
+    10498818,
+    10720336,
+    10735803,
+    10738110,
+    10743755,
+    10759411,
+    10980919,
+    10987381,
+    10989672,
+    10990558,
+    10997822,
+    11369041,
+    11370021,
+    11380651,
+    11442732,
+    11445501,
+    11452333,
+    11707689,
+    11765971,
+    11803266,
+    12115338,
+    12407509,
+    12524442,
+    12529022,
+    13084337,
+    13087304,
+    13091505,
+    13097175,
+    13102132,
+    13104575,
+    13286560,
+    13289620,
+    13291012,
+    13310052,
+    13349318,
+    13677543,
+    13924265,
+    13943124,
+    14118089,
+    14127858,
+    14129780,
+    14131615,
+    14133866,
+    14138355,
+    14200098,
+    14520733,
+    14822036,
+    14948799,
+    15141492,
+    15203952,
+    15286364,
+    15451862,
+    15454040,
+    15458239,
+    15463038,
+    15464903,
+    15466396,
+    15467926,
+    15480043,
+    15531694,
+    15535660,
+    15571053,
+    15574757,
+    15584610,
+    15591964,
+    15659918,
+    15783060,
+    16046146,
+    16225202,
+    16434090,
+    16504541,
+    16558164,
+    16684586,
+    16815863,
+    17089321,
+    17121063,
+    17331968,
+    17368416,
+    17373870,
+    17374736,
+    17375322,
+    17376908,
+    17575227,
+    17660546,
+    17768606,
+    17795683,
+    17798657,
+    18016679,
+    18021169,
+    18522343,
+    18539633,
+    18567757,
+    18600475,
+    18601523,
+    18603050,
+    18604273,
+    18605075,
+    18606486,
+    18608136,
+    18609738,
+    18613270,
+    18614328,
+    18616305,
+    18620306,
+    19127457,
+    19763630,
+    19821797,
+    20016962,
+    20067977,
+    20071655,
+    20075280,
+    20203948,
+    20228547,
+    20343519,
+    20344932,
+    20574990,
+    20913687,
+    20914740,
+    20916231,
+    21035712,
+    21232476,
+    21233141,
+    21234306,
+    21243710,
+    21269771,
+    21303542,
+    21304098,
+    21607765,
+    21611324,
+    21883006,
+    21921533,
+    21925818,
+    21931478,
+    21934402,
+    21935578,
+    21948770,
+    22181918,
+    22294086,
+    22501773,
+    22506513,
+    22509417,
+    22518324,
+    22568333,
+    22572143,
+    22575608,
+    22622519,
+    22941495,
+    23090170,
+    23109064,
+    23271794,
+    23279577,
+    23283160,
+    23662034,
+    23674830,
+    23977206,
+    23996655,
+    24109845,
+    24239207,
+    24684075,
+    24829781,
+    24980143,
+    24991808,
+    24996001,
+    24998431,
+    25001572,
+    25017281,
+    25027887,
+    25114303,
+    25476644,
+    25607295,
+    25708714,
+    25709227,
+    26085146,
+    26119735,
+    26120756,
+    26150312,
+    26349937,
+    26405925,
+    26855634,
+    26930663,
+    26932565,
+    27063126,
+    27063851,
+    27250560,
+    27896279,
+    27896955,
+    27933885,
+    27938180,
+    27952115,
+    27954378,
+    28005426,
+    28197530,
+    28199057,
+    28200377,
+    28207653,
+    28216970,
+    28772059,
+    28779636,
+    28785581,
+    28790174,
+    28892861,
+    28897022,
+    29051743,
+    29174131,
+    29308217,
+    29379931,
+    29410031,
+    29482138,
+    29626754,
+    29691004,
+    29726405,
+    29728906,
+    29788209,
+    29795112,
+    29796740,
+    29798150,
+    29803137,
+    29825400,
+    29826075,
+    29867890,
+    29927149,
+    30067100,
+    30071638,
+    30073943,
+    30116473,
+    30189168,
+    30296077,
+    30302455,
+    30316058,
+    30317095,
+    30317608,
+    30324146,
+    30335220,
+    30661095,
+    30703547,
+    30896832,
+    30952399,
+    31269204,
+    31298610,
+    31335434,
+    31352240,
+    31595836,
+    31731502,
+    31914590,
+    32158687,
+    32306616,
+    32438147,
+    32491613,
+    32506473,
+    32510087,
+    32514353,
+    32705111,
+    32710811,
+    32775908,
+    32783442,
+    32876137,
+    33459457,
+    33460513,
+    33517248,
+    33519940,
+    33562866,
+    33572744,
+    33582428,
+    33585474,
+    34175177,
+    34219296,
+    34276837,
+    34489270,
+    34646567,
+    34648150,
+    34649826,
+    34650545,
+    34651966,
+    34656138,
+    35444268,
+    35704464,
+    35754632,
+    35943116,
+    35961860,
+    36020375,
+    36461304,
+    36473020,
+    36474869,
+    36600222,
+    36798517,
+    36799022,
+    36800571,
+    36801854,
+    36803910,
+    36862283,
+    36966322,
+    36969634,
+    36976935,
+    37031952
+   ]
+  },
+  "h2h_reference": {
+   "note": "h2h inj_score.txt, native amplitude, chance-corrected recall within 2 ms",
+   "july": {
+    "per_piece": {
+     "20261020_vlf_0800Z": 0.08,
+     "20261104_vlf_0100Z": 0.3,
+     "20261105_vlf_1500Z": 0.71,
+     "20261105_vlf_2000Z": 0.66,
+     "20261106_vlf_1000Z": 0.66,
+     "20261106_vlf_2200Z": 0.3
+    },
+    "mean": 0.45
+   },
+   "onair_bp": {
+    "per_piece": {
+     "20261020_vlf_0800Z": 0.6,
+     "20261104_vlf_0100Z": 0.65,
+     "20261105_vlf_1500Z": 0.75,
+     "20261105_vlf_2000Z": 0.81,
+     "20261106_vlf_1000Z": 0.8,
+     "20261106_vlf_2200Z": 0.62
+    },
+    "mean": 0.71
+   },
+   "onair_raw": {
+    "per_piece": {
+     "20261020_vlf_0800Z": 0,
+     "20261104_vlf_0100Z": 0,
+     "20261105_vlf_1500Z": 0,
+     "20261105_vlf_2000Z": 0,
+     "20261106_vlf_1000Z": 0,
+     "20261106_vlf_2200Z": 0
+    },
+    "mean": 0.0
+   }
+  }
+ },
+ "poisson_reference": {
+  "note": "onair-review/mains_sim.py: OnAir-style rule on pure Poisson times, share wrongly rejected",
+  "rule": {
+   "5": 0.0,
+   "10": 0.0,
+   "20": 0.0,
+   "40": 0.043,
+   "60": 0.135,
+   "80": 0.179,
+   "120": 0.155,
+   "200": 0.1
+  }
+ },
+ "comb_share_chance": 0.144,
+ "hum_label_method": "rough: july rule per 10 s block. hum_on_s = dense buzz (> 20 edges/s AND comb share > 0.5, bench/harness.py hum_blocks). buzz_suspect_s = blocks <= 20 edges/s with >= 20 edges and comb share > 0.5, kept only when they total >= 30 s (buzz_suspect_blocks). hum_label_complete false => hum_on_s is a lower bound, not truth. Plan step 2 replaces this"
+}

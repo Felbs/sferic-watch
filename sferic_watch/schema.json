@@ -1,0 +1,188 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "sferic-watch/session/2",
+ "title": "sferic-watch session (one capture)",
+ "description": "Written by sferic_watch.report for one VLF capture. Every rate carries gated_frac, hum_frac, comb_share against comb_chance, the two-band coincidence rate with its chance rate, and the detector version. No station position is ever stored.",
+ "type": "object",
+ "additionalProperties": false,
+ "required": ["schema", "engine_version", "detector_version", "report_version", "capture", "rules", "summary", "minutes", "hum_blocks", "gate", "detector", "events"],
+ "properties": {
+  "schema": {"const": "sferic-watch/session/2"},
+  "engine_version": {"type": "string"},
+  "detector_version": {"type": "string", "description": "pipeline.VERSION of the gated chain that made the events"},
+  "report_version": {"type": "string"},
+  "capture": {
+   "type": "object",
+   "description": "Identity and recorder settings only, copied through a whitelist of sidecar keys.",
+   "additionalProperties": false,
+   "required": ["id", "file", "secs", "fs_hz", "fc_hz", "utc_start", "complete"],
+   "properties": {
+    "id": {"type": "string", "description": "vlf_YYYYMMDD_HHMMZ for banked captures, else the file stem"},
+    "file": {"type": "string", "description": "last folder and file name only"},
+    "secs": {"type": "number", "minimum": 0},
+    "fs_hz": {"type": "number", "minimum": 0},
+    "fc_hz": {"type": "number"},
+    "utc_start": {"type": ["string", "null"]},
+    "complete": {"type": "boolean", "description": "file length matches the sidecar secs within 1 s"},
+    "sidecar_secs": {"type": ["number", "null"]},
+    "antenna": {"type": ["string", "null"]},
+    "agc": {"type": ["boolean", "null"]},
+    "ifgr_db": {"type": ["number", "null"]},
+    "rfgr_db": {"type": ["number", "null"]},
+    "overflows": {"type": ["number", "null"]},
+    "timeouts": {"type": ["number", "null"]},
+    "ntp_synced": {"type": ["boolean", "null"]},
+    "sidecar_edges_per_s": {"type": ["number", "null"]},
+    "sidecar_hum_share_120hz": {"type": ["number", "null"]}
+   }
+  },
+  "rules": {
+   "type": "object",
+   "description": "The constants the numbers below were made with.",
+   "additionalProperties": false,
+   "required": ["minute_s", "comb_window_ms", "comb_chance", "comb_trust_max", "gated_trust_max", "coinc_window_ms", "conf_db", "reject_window_ms", "escape_db"],
+   "properties": {
+    "minute_s": {"type": "number"},
+    "comb_window_ms": {"type": "number"},
+    "comb_chance": {"type": "number"},
+    "comb_trust_max": {"type": "number"},
+    "gated_trust_max": {"type": "number"},
+    "coinc_window_ms": {"type": "number"},
+    "conf_db": {"type": "number"},
+    "reject_window_ms": {"type": "number"},
+    "escape_db": {"type": "number"}
+   }
+  },
+  "summary": {"$ref": "#/$defs/summary"},
+  "minutes": {"type": "array", "items": {"$ref": "#/$defs/rate"}},
+  "hum_blocks": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["t0_s", "dur_s", "hum", "R", "r_crit", "f_mains_hz", "n_edges", "n_locked"],
+    "properties": {
+     "t0_s": {"type": "number", "minimum": 0},
+     "dur_s": {"type": "number", "minimum": 0},
+     "hum": {"type": "boolean"},
+     "R": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+     "r_crit": {"type": ["number", "null"]},
+     "f_mains_hz": {"type": ["number", "null"]},
+     "n_edges": {"type": "integer", "minimum": 0},
+     "n_locked": {"type": ["number", "null"]}
+    }
+   }
+  },
+  "gate": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": ["rejected", "escaped", "n_trains", "train_kinds", "gated_frac_engine", "floor_blocks_excluded", "trains"],
+   "properties": {
+    "rejected": {"type": "integer", "minimum": 0},
+    "escaped": {"type": "integer", "minimum": 0},
+    "n_trains": {"type": "integer", "minimum": 0},
+    "train_kinds": {"type": "object", "additionalProperties": {"type": "integer"}},
+    "gated_frac_engine": {"type": ["number", "null"], "description": "pipeline info gated_frac (open-ended spans count as zero there)"},
+    "floor_blocks_excluded": {"type": "integer", "minimum": 0},
+    "trains": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["t_ref_s", "kind", "f_hz", "phase_ms", "n", "median_db", "p", "span_s"],
+      "properties": {
+       "t_ref_s": {"type": "number"},
+       "kind": {"type": "string"},
+       "f_hz": {"type": "number"},
+       "phase_ms": {"type": "number"},
+       "n": {"type": "integer"},
+       "median_db": {"type": ["number", "null"]},
+       "p": {"type": "number"},
+       "span_s": {"type": "array", "items": {"type": ["number", "null"]}}
+      }
+     }
+    }
+   }
+  },
+  "detector": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": ["too_wide", "floor_dbfs_min", "floor_dbfs_max", "floor_held_s", "floor_none_s", "n_hi_impulses"],
+   "properties": {
+    "too_wide": {"type": "integer", "minimum": 0},
+    "floor_dbfs_min": {"type": ["number", "null"]},
+    "floor_dbfs_max": {"type": ["number", "null"]},
+    "floor_held_s": {"type": ["number", "null"]},
+    "floor_none_s": {"type": ["number", "null"]},
+    "n_hi_impulses": {"type": "integer", "minimum": 0}
+   }
+  },
+  "events": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": ["file", "n", "columns"],
+   "properties": {
+    "file": {"type": "string"},
+    "n": {"type": "integer", "minimum": 0},
+    "columns": {"type": "array", "items": {"type": "string"}}
+   }
+  }
+ },
+ "$defs": {
+  "rate": {
+   "type": "object",
+   "description": "Rates for one span of the capture (a minute, or the whole file in summary).",
+   "additionalProperties": false,
+   "required": ["t0_s", "dur_s", "n_events", "rate_per_min", "rate_open_per_min", "n_conf", "conf_per_min", "gated_frac", "gated_frac_sum", "hum_frac", "comb_share", "comb_chance", "v2_n_lo", "v2_n_hi", "v2_n", "v2_per_min", "v2_chance_per_min", "trusted", "untrusted_because"],
+   "properties": {
+    "t0_s": {"type": "number", "minimum": 0},
+    "dur_s": {"type": "number", "minimum": 0},
+    "n_events": {"type": "integer", "minimum": 0},
+    "rate_per_min": {"type": "number", "minimum": 0, "description": "gated events per minute"},
+    "rate_open_per_min": {"type": ["number", "null"], "minimum": 0, "description": "events per minute of time outside the reject windows"},
+    "n_conf": {"type": "integer", "minimum": 0},
+    "conf_per_min": {"type": "number", "minimum": 0, "description": "events with 16-30 kHz confirmation (+6 dB) per minute"},
+    "gated_frac": {"type": "number", "minimum": 0, "maximum": 1, "description": "share of the span inside the union of all mains reject windows (+-0.2 ms per train pulse, tracked phase)"},
+    "gated_frac_sum": {"type": "number", "minimum": 0, "maximum": 1, "description": "report-1 measure kept for comparison: reject time summed over trains (overlaps counted more than once)"},
+    "hum_frac": {"type": "number", "minimum": 0, "maximum": 1},
+    "comb_share": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+    "comb_chance": {"type": "number"},
+    "v2_n_lo": {"type": "integer", "minimum": 0},
+    "v2_n_hi": {"type": "integer", "minimum": 0},
+    "v2_n": {"type": "integer", "minimum": 0},
+    "v2_per_min": {"type": "number", "minimum": 0, "description": "events with a 16-30 kHz impulse peak within 0.5 ms, per minute"},
+    "v2_chance_per_min": {"type": "number", "minimum": 0, "description": "n_lo n_hi 1 ms / T^2, per minute"},
+    "trusted": {"type": "boolean"},
+    "untrusted_because": {"type": "array", "items": {"enum": ["comb_share", "gated_frac"]}}
+   }
+  },
+  "summary": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": ["t0_s", "dur_s", "n_events", "rate_per_min", "rate_open_per_min", "n_conf", "conf_per_min", "gated_frac", "gated_frac_sum", "hum_frac", "comb_share", "comb_chance", "v2_n_lo", "v2_n_hi", "v2_n", "v2_per_min", "v2_chance_per_min", "trusted", "untrusted_because", "n_minutes", "n_minutes_untrusted"],
+   "properties": {
+    "t0_s": {"type": "number", "minimum": 0},
+    "dur_s": {"type": "number", "minimum": 0},
+    "n_events": {"type": "integer", "minimum": 0},
+    "rate_per_min": {"type": "number", "minimum": 0},
+    "rate_open_per_min": {"type": ["number", "null"], "minimum": 0},
+    "n_conf": {"type": "integer", "minimum": 0},
+    "conf_per_min": {"type": "number", "minimum": 0},
+    "gated_frac": {"type": "number", "minimum": 0, "maximum": 1, "description": "share of the span inside the union of all mains reject windows (+-0.2 ms per train pulse, tracked phase)"},
+    "gated_frac_sum": {"type": "number", "minimum": 0, "maximum": 1, "description": "report-1 measure kept for comparison: reject time summed over trains (overlaps counted more than once)"},
+    "hum_frac": {"type": "number", "minimum": 0, "maximum": 1},
+    "comb_share": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+    "comb_chance": {"type": "number"},
+    "v2_n_lo": {"type": "integer", "minimum": 0},
+    "v2_n_hi": {"type": "integer", "minimum": 0},
+    "v2_n": {"type": "integer", "minimum": 0},
+    "v2_per_min": {"type": "number", "minimum": 0},
+    "v2_chance_per_min": {"type": "number", "minimum": 0},
+    "trusted": {"type": "boolean"},
+    "untrusted_because": {"type": "array", "items": {"enum": ["comb_share", "gated_frac"]}},
+    "n_minutes": {"type": "integer", "minimum": 0},
+    "n_minutes_untrusted": {"type": "integer", "minimum": 0}
+   }
+  }
+ }
+}

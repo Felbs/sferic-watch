@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=77"]   # PEP 639 string licence below needs >= 77
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sferic-watch"
+version = "0.2.0.dev0"
+description = "Single-station lightning (sferic) and ionosphere sensing from VLF IQ captures"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+dependencies = ["numpy>=1.26", "scipy>=1.11"]
+
+[project.optional-dependencies]
+test = ["pytest>=8"]
+
+[project.scripts]
+sferic-watch = "sferic_watch.cli:main"
+
+[tool.setuptools]
+packages = ["sferic_watch"]
+
+[tool.setuptools.package-data]
+sferic_watch = ["schema.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [".", "bench"]
+# no addopts "-q" here: with "pytest -q" on the command line it became -qq and hid the pass/fail summary line

@@ -75,14 +75,132 @@ But:
 - the indoor antenna (port B) hears almost no sferics; use the outdoor ones.
 
 Every "better" above is injection recall or detectors agreeing with each
-other. **There is no outside truth yet** (no GLM / network comparison), so
-nobody can say how many of v2's strokes are real.
+other. The next section is the first check against an outside truth.
+
+### Checked against satellite lightning (GOES GLM)
+
+**How.** The GOES-East and GOES-West Geostationary Lightning Mappers (GLM)
+see lightning flashes from space. Their L2 files are public on NOAA's
+buckets, 20 s each. `bench/glm_fetch.py` downloads the files for the time
+window of each of the 151 banked captures (by time only, nothing else is
+sent) and decodes them. The decoding was checked against each file's own
+time metadata. `bench/glm_truth.py` then runs the detectors on the same
+captures and asks two questions:
+
+- **precision**: what share of a detector's events have a GLM flash at the
+  same moment?
+- **recall**: what share of GLM flashes did the detector catch, by distance?
+
+Chance is measured, not assumed. The same counts are redone with the GLM
+times shifted by 5-60 s, and only the excess over that counts. The
+uncertainty comes from resampling blocks of 8 consecutive captures, because
+one storm fills many captures in a row. The scored numbers below are
+"chance-corrected" in that sense.
+
+**The clock.** VLF and GLM line up sharply (z ≈ 1200) once two things are
+removed:
+
+- the travel time through the waveguide: 3.75 ± 0.13 ms per 1000 km, which
+  is an effective 0.89 c for our 2.5-9 kHz threshold crossing;
+- a fixed +26 ms offset in our recorder. The sidecar time is stamped after
+  the settle reads, so sample 0 is about 26 ms older than its stamp. It
+  varies by ±1.5 ms from capture to capture (p5-p95 17-33 ms).
+
+GLM times are at the flash, not at the satellite. That was tested two ways:
+the same flash seen by both satellites has the same time, and the residual
+does not move with the flash-to-satellite light time. The match window is
+±8.5 ms.
+
+**Precision** (share of events that are real lightning within 4000 km, 95 %
+block interval). This is a lower bound: GLM misses some flashes and does not
+see the whole sky.
+
+| detector | precision | real lightning sferics per minute | recall 0-500 km | recall 500-1000 km | 50 % range |
+|---|---|---|---|---|---|
+| july | 0.003 (0.001-0.006) | 9.7 (of 3281 events/min) | 0.82* | 0.49* | — |
+| onair_bp | 0.33 (0.24-0.39) | 30.0 | 0.83 | 0.48 | 681 km |
+| v2_detect (no mains gate) | 0.24 (0.17-0.29) | 39.2 | 0.85 | 0.51 | 733 km |
+| **v2** | **0.49 (0.38-0.57)** | **33.6** | **0.87** | **0.52** | **738 km** |
+| **v2 + 16-30 kHz confirmation** | **0.63 (0.55-0.69)** | **29.4** | **0.87** | **0.51** | **717 km** |
+
+\* july fires 3281 times a minute on buzz, so its recall is mostly the
+chance correction. Its precision is the honest number.
+
+- v2 minus onair_bp precision: +0.16 (0.07-0.26). v2 catches more real
+  sferics per minute (+3.6/min, 0.1-8.0) and fewer false ones.
+- v2 minus v2_detect precision: +0.25 (0.15-0.34). The mains gate removes
+  buzz, not lightning.
+- Recall within 1000 km: v2 beats onair_bp by +0.045 (0.016-0.091). Beyond
+  1000 km the detectors cannot be told apart.
+
+**Range curve** (v2, share of GLM flashes caught, group rule):
+
+| distance | recall | 95 % block interval |
+|---|---|---|
+| 0-500 km | 0.87 | 0.74-0.92 (one storm, see below) |
+| 500-1000 km | 0.52 | 0.34-0.71 |
+| 1000-2000 km | 0.10 | 0.06-0.14 |
+| 2000-3000 km | 0.08 | 0.05-0.12 |
+| 3000-4000 km | 0.02 | 0.01-0.04 |
+| over 4000 km | 0.001 | — |
+
+Recall falls to 50 % at about 740 km (560-1030) and to 10 % at about 1570 km
+(1430-2440). Bigger flashes are heard farther: at 1000-2000 km the most
+energetic third is caught 15 % of the time and the weakest third 4 %.
+Peak level falls about 11-13 dB per tenfold distance.
+
+**What this proves**
+
+- Most of what v2 counts is real lightning. At least half of its events
+  (63 % with confirmation) line up with a GLM flash within ±8.5 ms. That
+  share is a floor.
+- v2 is better than OnAir's rule on real lightning, not only on injected
+  pulses. The difference is clear for precision and small but real for
+  near-range recall.
+- The station hears nearby storms well (most flashes within 500 km), about
+  half the flashes at 500-1000 km, and only the big ones beyond that.
+
+**What it does not prove**
+
+- The 0-500 km number is one storm. 99 % of the near flashes are from
+  2026-11-06. Resampled by whole days, its interval goes below 0.
+- The other ~half of v2's events are not shown to be false. GLM misses
+  flashes (especially weak or low ones) and only sees part of the far sky.
+  Some of the "unmatched" events are surely lightning.
+- No range or bearing per stroke. The distances come from GLM, not from the
+  radio.
+- Day to day it moves a lot. v2 precision by day runs from 0.11 (11-05) to
+  0.59 (11-06). It is higher at night (0.62) than by day (0.42).
+
+**Caveats**
+
+- 151 captures over 7 days, mostly autumn evenings and nights.
+- The chance level depends on how far the shifts go. A 20 s block shuffle
+  lowers v2 precision by about 0.008. Shifts under 1 s lower it to 0.44,
+  because real flashes cluster within a second.
+- The ±8.5 ms window and the waveguide speed were fitted on the same data.
+  The per-capture clock lags are cross-fitted (half the capture fits the
+  lag for the other half).
+- GOES-East and GOES-West overlap. Some flashes are counted twice at
+  1000-4000 km (about 5-9 %), which does not move the headline numbers.
+
+**Privacy.** Distances need the station position. It is read only from a
+private file outside this repo
+(`~/.local/share/sferic-watch/station.json`, rounded to about 1 km), only
+inside the code, and is never printed, sent anywhere or committed. The
+per-flash GLM files with distances stay in the same private folder. The
+repo and the results hold only aggregates: counts, rates, lags and
+distance bins of 250 km or wider, no bearings.
+
+See [bench/README.md](bench/README.md#checked-against-satellite-lightning-goes-glm)
+for how to run it.
 
 ### Not built yet
 
 - **Live daemon** — no streaming chain, no systemd unit, no radio lock.
 - **Alerts** — no trigger on the gated sky rate, no replay test.
-- **Outside truth** — no comparison with a lightning network or GOES GLM.
+- **Network truth** — GLM is done (above); no comparison with a ground
+  lightning network yet, which would give stroke-level timing.
 - **Range / tweeks** — there is an audit (`tweek_audit.py`) of the old
   tweek-height method, and its verdict is that the random-window null does
   not hold up (daytime "textbook tweeks" pass 5.8x the null). **No per-stroke

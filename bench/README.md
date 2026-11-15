@@ -135,3 +135,93 @@ The whole-file rates are identical to the h2h table. For example, 10-19 15Z give
   floor, for the 16 ms the cut lasts. At the 30 dB level that copy sits up to 5.7 dB ABOVE the host floor around the
   pulse; at 24 dB and below it is at or under it. This may be why july's clean recall dips from 0.99 at 24 dB to
   0.94 at 30 dB. The synth set has no such floor copy (1.00 at 30 dB).
+
+## Checked against satellite lightning (GOES GLM)
+
+Two scripts score the detectors against GOES GLM L2 lightning (GOES-East G19 and GOES-West G18) on all 151
+banked captures. They are separate from `harness.py` because the truth here is outside data, not injected pulses.
+
+- `glm_fetch.py`: downloads the 20 s GLM files for each capture's time window (padded 60 s each side) from the
+  public NOAA buckets, by time only, and decodes them. The times are scaled unsigned int16 relative to the file's
+  `time_coverage_start`; `validate` checks that against the metadata. It merges the two satellites (G19 wins
+  within 50 ms and 50 km) and writes one private npz per capture, with a distance from the station for each
+  flash and group.
+- `glm_truth.py`: runs july, onair_bp, v2_detect and v2 on every capture (`events`), then fits the clock and
+  scores precision, recall and chance (`match`). Every output is an aggregate.
+
+```
+export SFERIC_ONAIR_BIN=/path/to/onair_sferics_h2h
+export SFERIC_GLM_EVENTS=/some/scratch/dir/events        # cached detector events (one npz per capture)
+R="systemd-run --user --scope -q -p MemoryMax=4G nice -n 10 python"
+$R bench/glm_fetch.py fetch                               # download + decode (at most 8 connections)
+$R bench/glm_fetch.py validate                            # decode check against the file metadata
+$R bench/glm_fetch.py lighttime                           # G18 vs G19: are GLM times at the flash?
+$R bench/glm_truth.py events --workers 2
+$R bench/glm_truth.py match --workers 2 --boot 1000 --out results.json   # --lag-mode pooled for the sensitivity run
+```
+
+**Station position.** Distances need it, so `glm_fetch.py` reads `$SFERIC_STATION` (default
+`~/.local/share/sferic-watch/station.json`, chmod 600, rounded to about 1 km) inside the process only. The per-flash
+npz files (`$SFERIC_GLM_DIR`, default `~/.local/share/sferic-watch/glm`) hold distances and stay there, outside
+the repo. `glm_truth.py` never reads the station file. Nothing positional is printed or written to results: only
+counts (rounded to 10), rates, lags and distance bins of 250 km or wider, with no bearings.
+
+### Method
+
+- **Clock.** Detector time minus GLM time minus the waveguide delay d / v, histogrammed over ±2 s in 1 ms bins.
+  The clean peak comes from v2 events confirmed at 16-30 kHz against GLM within 2000 km. The fitted speed is
+  3.75 ± 0.13 ms per 1000 km (v = 0.89 c, 0.86-0.92) for our 2.5-9 kHz threshold crossing.
+  The pooled lag is +25.9 ms (z ≈ 1200): the sidecar `utc` is stamped after the settle reads, so sample 0 is about
+  26 ms older than its stamp. Per capture it is 24.8-26.9 ms (p25-p75).
+- **Light time.** GLM L2 times are at the flash. The same group seen by G18 and G19 carries the same time
+  (slope -0.02 against their light-time difference; +1 would mean satellite time). The VLF residual does not move
+  with the light time (slope -0.03, block CI -0.19 to 0.05; satellite time would give -1).
+- **Lag per capture.** Cross-fitted: events in the even 20 s blocks are scored with the lag fitted on the odd
+  blocks, and the other way round. One pooled lag instead lowers v2 precision by 0.002 (0.494 → 0.492).
+- **Match.** A detector event is matched when a GLM group lies within ±8.5 ms after alignment. A flash is caught
+  when an event lies within ±8.5 ms of one of its groups (the "group" rule). The "span" and "first event"
+  rules are also written.
+- **Chance.** The same counts with GLM shifted by 40 offsets of ±5-60 s. The excess over chance is what counts:
+  precision q = (matched - chance) / (1 - chance).
+- **Uncertainty.** Captures are not independent, so the headline 95 % interval is a moving-block bootstrap of 8
+  consecutive captures (1000 resamples). A whole-day bootstrap (7 days, crude) and the naive per-capture one are
+  written too, plus a per-day table.
+
+### Numbers as of 2026-11-14 (151 captures, 7 days)
+
+Precision within 4000 km (lower bound, 95 % block CI) and recall by distance (group rule, chance-corrected):
+
+| detector | precision | real sferics/min | 0-500 km | 500-1000 | 1000-2000 | 2000-3000 | 3000-4000 | 50 % range |
+|---|---|---|---|---|---|---|---|---|
+| july | 0.003 (0.001-0.006) | 9.7 | 0.82* | 0.49* | 0.10 | 0.08 | 0.015 | — |
+| onair_bp | 0.33 (0.24-0.39) | 30.0 | 0.83 | 0.48 | 0.09 | 0.07 | 0.021 | 681 km |
+| v2_detect | 0.24 (0.17-0.29) | 39.2 | 0.85 | 0.51 | 0.10 | 0.08 | 0.022 | 733 km |
+| v2 | 0.49 (0.38-0.57) | 33.6 | 0.87 | 0.52 | 0.10 | 0.08 | 0.021 | 738 km |
+| v2_conf | 0.63 (0.55-0.69) | 29.4 | 0.87 | 0.51 | 0.09 | 0.07 | 0.019 | 717 km |
+
+\* july fires about 3300 times a minute on buzz; its recall is mostly the chance correction.
+
+- v2 recall intervals: 0-500 km 0.74-0.92, 500-1000 km 0.34-0.71, 1000-2000 km 0.06-0.14. Recall falls to 50 % at
+  740 km (560-1030) and to 10 % at 1570 km (1430-2440).
+- v2 minus onair_bp: precision +0.16 (0.07-0.26), recall at 0-1000 km +0.045 (0.016-0.091), no difference
+  beyond 1000 km.
+- v2 precision with no distance cap 0.53 (0.43-0.61), within 2000 km 0.36 (0.22-0.47). By day it ranges from 0.11
+  (11-05) to 0.59 (11-06). It is 0.62 at night and 0.42 by day, 0.53 on hum captures and 0.43 on clean ones.
+- Precision rises with peak level: 0.34 below 12 dB, 0.58-0.68 from 12 to 30 dB.
+- Within 500 km a flash gives about 11 v2 events (18 per caught flash). From 1000 to 4000 km it gives 2.0-2.5 per
+  caught flash.
+
+### Caveats
+
+- 99 % of the GLM flashes within 500 km fall on 2026-11-06. The 0-500 km recall is that storm's number, and its
+  whole-day interval goes below 0.
+- Precision is a lower bound. GLM misses flashes, and its field of view and detection efficiency are not corrected.
+- The chance level depends on the shift range. A 20 s block shuffle lowers v2 precision by about 0.008. Shifts
+  of 0.1-1 s lower it to 0.44, because real lightning clusters within a second. The 5-60 s range is a choice.
+- The ±8.5 ms window and the waveguide speed are fitted on all the data (not cross-fitted). The window is wide
+  compared with the lag spread, so the effect is small.
+- The G18/G19 merge leaves some twins: about 5-9 % of flashes at 1000-4000 km. Precision is not affected,
+  recall ratios hardly at all.
+- `tests/test_glm_truth.py` covers the lag recovery on synthetic skies (flash- and satellite-referenced), the
+  light-time geometry, the resampling and an end-to-end match. The GLM decoding is checked by `glm_fetch.py
+  validate` against real files, not by a unit test.

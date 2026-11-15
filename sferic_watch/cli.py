@@ -4,6 +4,9 @@
         one <id>.session.json + <id>.events.csv per capture
     python -m sferic_watch census DIR_OF_CAPTURES [DIR ...] --out CSV [--sessions DIR] [--workers 2]
         one census row per capture (every vlf_*.cs16 under the folders); --sessions also keeps the per-capture files
+    python -m sferic_watch live --radio soapy|mock [--antenna 'Antenna C'] [--state-dir DIR] [--mock-files F ...]
+        [--speed N] [--duration S]
+        the live storm watcher (sferic_watch/live.py)
 
 ``sferic-watch ...`` (the installed console script) and ``python -m sferic_watch.cli ...`` take the same arguments.
 
@@ -89,7 +92,13 @@ def main(argv: list[str] | None = None) -> int:
     c.add_argument("--out", required=True, help="census CSV path")
     c.add_argument("--sessions", default=None, help="also write each capture's session files here")
     c.add_argument("--workers", type=int, default=1)
+    from sferic_watch import live
+    lv = sub.add_parser("live", help="live storm watcher daemon (radio or mock replay)",
+                        description=live.__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    live.build_parser(lv)
     args = ap.parse_args(argv)
+    if args.cmd == "live":
+        return live.main(args=args)
     if args.cmd == "analyze":
         res = run_many([os.path.expanduser(f) for f in args.files], args.out, args.workers)
         return int(any(r is None for _, r in res))

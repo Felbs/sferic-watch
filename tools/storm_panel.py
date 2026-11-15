@@ -23,7 +23,14 @@ hidden.
 Older session folders (``vlf_HHMMSS.json`` with ``impulses_per_min`` and ``impulse_t``) still load, one leg per
 file, judged by the same comb-share rule; their tweek numbers are ignored for the same reason.
 
+Live view: ``--live STATE_DIR`` reads the live watcher's files instead (``sferic_watch.live``, default state dir
+``~/.local/state/sferic-watch``): the last ``--live-minutes`` (720) lines of ``minutes.jsonl`` (plus yesterday's
+archive file when today's is short) become the legs, with the same trust rule, and the banner shows the watcher's
+own storm level from ``state.json`` (level, stat against baseline) when it is above quiet; otherwise the jump rule
+below. A stale heartbeat (over 60 s) is shown in the banner too.
+
     python tools/storm_panel.py --session <dir> [--port 8647]
+    python tools/storm_panel.py --live [STATE_DIR] [--port 8647]
 """
 import argparse
 import json
@@ -144,6 +151,91 @@ def load_session(session):
     return legs
 
 
+def legs_from_live_minute(m):
+    """One leg from a live ``minutes.jsonl`` record."""
+    w = None
+    try:
+        w = datetime.fromisoformat(m["utc"].replace("Z", "+00:00"))
+    except (KeyError, ValueError):
+        pass
+    hhmm = w.strftime("%H:%M") if w else "?"
+    return {"stamp": hhmm.replace(":", "") + "00", "hhmm": hhmm, "day": w.strftime("%Y-%m-%d") if w else None,
+            "capture": f"live seg {m.get('segment')}", "sky": sky_share(m.get("comb_share")),
+            "utc_start": m.get("utc"), "t0_s": 0.0, "secs": m.get("dur_s"),
+            "rate": m.get("rate_per_min"), "n": m.get("n_events"), "pl_frac": m.get("comb_share"),
+            "gated_frac": m.get("gated_frac"), "hum_frac": m.get("hum_frac"),
+            "v2_rate": m.get("v2_per_min"), "v2_chance": m.get("v2_chance_per_min"),
+            "conf_rate": m.get("conf_per_min"),
+            "trusted": bool(m.get("trusted")), "why": list(m.get("untrusted_because") or []),
+            "detector_version": m.get("engine"),
+            "n_tweeks": None, "h_km": None, "d_km": [], "carriers": {}}
+
+
+def _tail_lines(path, n):
+    """The last n complete lines of a file (reads back far enough; a cut first line is dropped)."""
+    if n <= 0:
+        return []
+    try:
+        with open(path, "rb") as f:
+            f.seek(0, 2)
+            size = f.tell()
+            back = 4096 * (n + 1)
+            while True:
+                start = max(0, size - back)
+                f.seek(start)
+                lines = f.read().splitlines()
+                if start > 0:
+                    lines = lines[1:]
+                if len(lines) >= n or start == 0:
+                    return lines[-n:]
+                back *= 4
+    except OSError:
+        return []
+
+
+def load_live(state_dir, max_minutes=720):
+    """(legs, state) of a live watcher's state dir: the last ``max_minutes`` minute records (today's file, topped up
+    from the newest archived day) and state.json (None when missing)."""
+    d = Path(state_dir).expanduser()
+    lines = _tail_lines(d / "minutes.jsonl", max_minutes)
+    if len(lines) < max_minutes:
+        arch = sorted((d / "archive").glob("minutes-*.jsonl"))
+        if arch:
+            lines = _tail_lines(arch[-1], max_minutes - len(lines)) + lines
+    legs = []
+    for ln in lines:
+        try:
+            m = json.loads(ln)
+        except ValueError:
+            continue
+        if not isinstance(m, dict) or m.get("gap"):        # gap rows mark missing minutes, they are not legs
+            continue
+        legs.append(legs_from_live_minute(m))
+    try:
+        state = json.loads((d / "state.json").read_text())
+    except (OSError, ValueError):
+        state = None
+    return date_labels(legs), state
+
+
+def live_alert(state, legs):
+    """Banner for the live view: the watcher's own level when above quiet, a stale-heartbeat warning, else the
+    jump rule on the trusted legs."""
+    msgs = []
+    if state:
+        age = time.time() - float(state.get("heartbeat_t") or 0)
+        if state.get("status") != "running" or age > 60:
+            msgs.append(f"WATCHER {str(state.get('status', '?')).upper()} (heartbeat {age:.0f} s ago)")
+        a = state.get("alert") or {}
+        if a.get("level", 0) > 0:
+            msgs.append(f"STORM LEVEL {a.get('name', '?').upper()}: {a.get('stat_conf_per_min')} confirmed/min "
+                        f"vs baseline {a.get('baseline_conf_per_min')} ({a.get('baseline_source')})")
+    j = jump_alert(legs)
+    if j:
+        msgs.append(j["msg"])
+    return {"jump": True, "msg": " | ".join(msgs)} if msgs else None
+
+
 def latest_carrier_trace(session, max_pts=600):
     npys = sorted(Path(session).glob("naa_*.npy"))
     if not npys:
@@ -224,7 +316,7 @@ def served_page():
     return page[:i] + TRUST_JS.encode() + page[i:] if i >= 0 else page + TRUST_JS.encode()
 
 
-def make_handler(session):
+def make_handler(session, live=None, live_minutes=720):
     class H(BaseHTTPRequestHandler):
         def log_message(self, *a):
             pass
@@ -240,6 +332,13 @@ def make_handler(session):
         def do_GET(self):
             if self.path in ("/", "/index.html"):
                 self._send(200, served_page(), "text/html")
+            elif self.path == "/storm.json" and live is not None:
+                legs, state = load_live(live, live_minutes)
+                self._send(200, json.dumps({
+                    "t": time.time(), "session": "live", "legs": legs, "trace": None,
+                    "alert": live_alert(state, legs),
+                    "live": {k: (state or {}).get(k) for k in ("status", "heartbeat_utc", "uptime_s", "alert",
+                                                                "disk")}}))
             elif self.path == "/storm.json":
                 legs = load_session(session)
                 self._send(200, json.dumps({
@@ -256,14 +355,17 @@ def make_handler(session):
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--session", required=True,
-                    help="folder of <id>.session.json files (or older vlf_*.json + naa_*.npy)")
+    g = ap.add_mutually_exclusive_group(required=True)
+    g.add_argument("--session", help="folder of <id>.session.json files (or older vlf_*.json + naa_*.npy)")
+    g.add_argument("--live", nargs="?", const="~/.local/state/sferic-watch",
+                   help="the live watcher's state dir (default ~/.local/state/sferic-watch)")
+    ap.add_argument("--live-minutes", type=int, default=720)
     ap.add_argument("--port", type=int, default=8647)
     args = ap.parse_args()
-    session = Path(args.session)
+    session = Path(args.session) if args.session else Path(args.live).expanduser()
     srv = ThreadingHTTPServer(("127.0.0.1", args.port),
-                              make_handler(session))
-    print(f"[storm_panel] http://127.0.0.1:{args.port}  session={session}")
+                              make_handler(session, live=args.live, live_minutes=args.live_minutes))
+    print(f"[storm_panel] http://127.0.0.1:{args.port}  {'live' if args.live else 'session'}={session}")
     srv.serve_forever()
 
 

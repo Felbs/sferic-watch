@@ -13,6 +13,8 @@ for p in (ROOT, os.path.join(ROOT, "bench")):
 
 FS = 62500.0
 
+os.environ["SFERIC_WATCH_NO_SDR"] = "1"     # no test may open the real SDR (radio.SoapyRadio refuses when set)
+
 
 @pytest.fixture
 def fs():

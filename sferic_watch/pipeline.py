@@ -75,6 +75,17 @@ def hum_edges(x: np.ndarray, flags: list[dict], fs: float = FS, scope: str = "al
     return np.concatenate(out) if out else np.zeros(0)
 
 
+def clocked_edges(edges: np.ndarray, flags: list[dict], scope: str = "all") -> np.ndarray:
+    """The edge times (s) that lie in a block the gate clocks under ``scope``: what ``hum_edges`` would return when
+    ``edges`` holds every block's edges."""
+    e = np.asarray(edges, float)
+    keep = np.zeros(e.size, bool)
+    for b in flags:
+        if mg.clocked(b, scope):
+            keep |= (e >= b["t0_s"]) & (e < b["t0_s"] + b["dur_s"])
+    return e[keep]
+
+
 def blank(p: np.ndarray, s: np.ndarray, e: np.ndarray, excl: np.ndarray) -> None:
     """In place: zero p over each [s, e) and mark every 1 ms floor block it touches in ``excl``."""
     for a, b in zip(s, e):
@@ -95,7 +106,8 @@ def refractory(t: np.ndarray, dead_s: float) -> np.ndarray:
 
 def run(x: np.ndarray, fs: float = FS, gate: bool = True, refractory_s: float | None = None,
         flags: list[dict] | None = None, powers: tuple[np.ndarray, np.ndarray] | None = None,
-        scope: str = "all", self_test: bool = True, bursts: bool = True, whole: bool = True) -> tuple[dict, dict]:
+        scope: str = "all", self_test: bool = True, bursts: bool = True, whole: bool = True,
+        edges: np.ndarray | None = None) -> tuple[dict, dict]:
     """Full v2 chain on baseband IQ ``x`` (complex64, full scale 1, centred 15 kHz). Times are s from x[0].
 
     ``flags`` lets a caller pass precomputed ``humflag.flag_iq`` blocks (same clock); blocks without the event
@@ -105,8 +117,14 @@ def run(x: np.ndarray, fs: float = FS, gate: bool = True, refractory_s: float | 
     ``scope`` picks the blocks the gate clocks ("flagged" is the plan's rule, "all" the default; see
     ``mainsgate.clocked``); ``self_test`` / ``bursts`` / ``whole`` switch the self test of unclocked blocks, the 1 s
     burst pass and the whole-capture fold (``mainsgate.gate``). scope="flagged", self_test=False is the plan's gate.
+    ``edges``: precomputed hum-flag edge times (s, same clock) of every block, as ``hum_edges(x, flags, fs, "all")``
+    gives them; only those inside blocks the gate clocks under ``scope`` are used. With ``flags``, ``powers`` and
+    ``edges`` all given ``x`` may be None: the live chain (``sferic_watch.live``) caches the three per minute and
+    reruns only the gate and the detector on a rolling window.
     Returns (events, info): events
     as ``detect.FIELDS`` arrays plus ``hum`` (event lies in a flagged block); info as described in the module doc."""
+    if x is None and (powers is None or flags is None or edges is None):
+        raise ValueError("x=None needs flags, powers and edges")
     c0 = time.process_time()
     p, pc = powers if powers is not None else dt.band_powers(x, fs)
     c1 = time.process_time()
@@ -116,12 +134,17 @@ def run(x: np.ndarray, fs: float = FS, gate: bool = True, refractory_s: float | 
     if flags and "hum_ev" not in flags[0]:
         hf.add_event_stats(flags, s / fs)                  # second edge source: the detector's own starts
     c2 = time.process_time()
-    secs = len(x) / fs
+    secs = (len(x) if x is not None else len(p)) / fs
     nb = len(p) // dt.BLOCK_N
     excl = np.zeros(nb, bool)
     trains, n_rej, n_esc = [], 0, 0
     if gate and (self_test or any(mg.clocked(b, scope) for b in flags)):
-        edges = hum_edges(x, flags, fs, scope) if any(mg.clocked(b, scope) for b in flags) else None
+        if not any(mg.clocked(b, scope) for b in flags):
+            edges = None
+        elif edges is None:
+            edges = hum_edges(x, flags, fs, scope)
+        else:
+            edges = clocked_edges(edges, flags, scope)
         rej, esc, trains = mg.gate(s / fs, pk, flags, edges=edges, scope=scope, self_test=self_test, bursts=bursts,
                                    whole=whole, t_end=e / fs)
         n_rej, n_esc = int(rej.sum()), int(esc.sum())

@@ -197,8 +197,8 @@ for how to run it.
 
 ### Not built yet
 
-- **Live daemon** — no streaming chain, no systemd unit, no radio lock.
-- **Alerts** — no trigger on the gated sky rate, no replay test.
+- **Live daemon on the real radio** — built and stress-tested on the mock
+  radio (next section); not yet run against the SDR itself.
 - **Network truth** — GLM is done (above); no comparison with a ground
   lightning network yet, which would give stroke-level timing.
 - **Range / tweeks** — there is an audit (`tweek_audit.py`) of the old
@@ -209,10 +209,207 @@ for how to run it.
   engine. Ideas, not features.
 - **Bearing** — one antenna gives no direction; that needs a crossed loop.
 
+## The live watcher
+
+`python -m sferic_watch live` is a daemon that keeps running: radio in, strokes,
+minute rates and a storm level out. Code: `sferic_watch/radio.py` (radio
+sources) and `sferic_watch/live.py` (chain, files, alert, lock).
+
+**In plain words.** It listens to the VLF band all the time, runs the same
+engine v2 as the batch tools, and every minute writes down how many
+lightning clicks it heard and whether that minute can be trusted (mains
+buzz, a dead or overloaded front end and radio dropouts make a minute
+untrusted). From the trusted minutes it keeps a storm level: quiet, active,
+storm or severe. Each stroke is written about 1-2 minutes after it
+happened. After a start or a dropout the first minute takes about 11 minutes
+to appear. Where it lost data, it writes a gap row instead of leaving a
+silent hole. It uses about 6 % of one CPU core and up to 1.7 GB of memory
+for about a second each minute. So far it has only run against recorded
+captures on a fake ("mock") radio. It has not yet run on the real SDR.
+
+| question | answer |
+|---|---|
+| how do I run it | `python -m sferic_watch live --radio soapy --antenna 'Antenna C'` (below) |
+| where does it write | `~/.local/state/sferic-watch/`: `state.json`, `minutes.jsonl`, `events.jsonl`, `alerts.jsonl` |
+| what does an alert mean | "much more trusted lightning than usual for this hour" (a relative level, not a distance) |
+| how often is it wrong | 0 false rises in 25 h of replayed nights checked against GOES GLM satellite lightning; with that little data the honest upper bound is about 3 false rises per day |
+| how do I stop it | Ctrl-C, or `kill <pid>` of the daemon (the `pid` in `state.json`) |
+
+```bash
+# the real radio (owns the SDR; refuses to start while dlayer_run.py runs or the lock is held,
+# and closes the radio and exits 3 if dlayer_run.py is started later)
+python -m sferic_watch live --radio soapy --antenna 'Antenna C'
+# replay captures as if they were the radio (no hardware): real time, N x, or --speed 0 unpaced
+python -m sferic_watch live --radio mock --mock-files ~/path/vlf_0200Z.cs16 --speed 10 --duration 600 \
+    --state-dir /tmp/sw-test [--mock-faults '[{"kind": "overflow", "at_s": 300, "n": 3}]']
+python tools/storm_panel.py --live          # the panel on the watcher's files
+```
+
+A unit file is in `systemd/sferic-watch.service` (not installed; the
+comments in it say how). Read the open items under *Known, not fixed*
+before installing it: a systemd stop currently loses the last minutes.
+
+**Radio.** The recipe every corpus capture was made with: SDRplay RSPdx via
+SoapySDR, 62.5 kS/s, centre 15 kHz, Antenna C (`--antenna`), AGC off,
+IFGR 40, RFGR 0, bias-T and notches off, CS16, a 1 s settle read thrown
+away. A reader thread fills a 120 s ring buffer; overflows, timeouts, short
+reads, read errors and ring drops are counted, and the device is reopened
+with backoff (1 s ... 60 s) when it fails. Each block is stamped from the
+host clock with the recorder's measured +26 ms stamp lag removed (GOES GLM
+pooled lag +25.9 ms, see below), and the host-vs-sample clock is checked on
+every read: a step or silent slip over 20 ms starts a new segment. The
+anchor after a gap comes from one read and is late by that read's jitter;
+it is refined on the next 16-read lag minimum (simulated at 10 ms mean
+jitter: median error 8.3 -> 0.1 ms, worst 41 -> 3 ms). The watcher looks
+for `dlayer_run.py` every 10 s (also `python3 -X dev -u dlayer_run.py`)
+and yields the radio to it. `SFERIC_WATCH_NO_SDR=1` makes the soapy radio
+refuse to open (tests and the stress bench set it).
+
+**Chain.** Per minute, the expensive local parts are computed once (front
+end powers with 2 s of context each side, frames on absolute positions, the
+hum flag's 10 s blocks with their edges, health); the gate and detector
+are then rerun on a rolling window of cached minutes (8 back, 1 ahead: as
+long as a banked capture, so the "whole" fold sees as much as offline),
+and only the oldest finished minute is written. **Delay: a stroke is
+written 61-121 s after it happened** (1 minute look-ahead + 2 s guard +
+about 1-2 s of CPU). **Warm-up:** after a start or a gap the window keeps
+its full 10 minutes, so the first minutes wait until 10 minutes are in
+(minute 0 is written about 11 min after it began) and a segment of up to
+10 minutes is gated exactly as the batch engine gates a banked capture.
+Without it (`--no-warmup`) the first minutes after every gap were gated on
+2-9 minutes, missed the slow "whole" buzz trains, kept 13-80 % more events
+than batch on hum captures and turned 94 batch-untrusted minutes trusted in
+the corpus soak. `--lookahead-min 0 --no-warmup` gives 2-62 s.
+
+**Outputs** (default `~/.local/state/sferic-watch`): `events.jsonl` (one line
+per stroke that passed the gate: time, peak dB, 16-30 kHz confirmation,
+hum block), `minutes.jsonl` (gated rate, confirmed rate, two-band rate,
+hum_frac, gated share, comb share, trusted, health: floor, NAA level, 0 Hz
+tone, clipping, radio faults in that minute, clock drift; plus explicit
+gap rows `{"gap": true, t, t_end, missing_min, reason}` where no minute
+was written: radio loss, a chain error or the watcher not running), `alerts.jsonl`,
+and `state.json` (heartbeat every 5 s, written atomically). Files rotate
+at UTC midnight into `archive/` (kept 30 days); optional raw recording
+(`--raw`) stops when the disk has under 5 GB free.
+
+**Storm level.** quiet / active / storm / severe from the *trusted*,
+gated, 16-30 kHz *confirmed* rate: the 10-minute median against a baseline
+(larger of the last 6 h and the same UTC hour band on earlier days, never
+under 10/min), with hysteresis (up after 3 minutes over 3x / 6x / 12x the
+baseline and over 40 / 80 / 200 per minute, down after 15 minutes under
+70 % of that). Untrusted minutes (comb share over 0.25 or over 20 % gated)
+never count, so buzz cannot raise it; nor do minutes whose front end is
+dead (floor under -120 dBFS), swamped (floor over -40 dBFS) or clipping
+(over 0.01 % of samples at full scale): those used to read as trusted quiet
+sky. Only a new trusted minute moves the level up, and when fewer than 5
+of the last 10 minutes are trusted for 15 minutes the level steps down one
+step per 15 minutes (`reason: no_trusted_minutes`) instead of holding for
+ever. On start the level and its baselines are rebuilt from the minute
+files of the last 8 days. Alert minutes stay out of the
+baseline for up to 6 h. A notifier hook exists (`--notify-cmd`); nothing
+goes to the network by default.
+
+### Measured (mock radio on real captures, 2026-11-15, after the repair round)
+
+| | result |
+|---|---|
+| stream vs batch, all 150 corpus captures in time order (each its own segment, warm-up on) | 126 captures identical; 149 of 150 within 2 % in total; 99.6 % of minutes within 2 %; 99.2 % of batch events found within 1 ms; 1 trust flip in 1496 minutes. The one outlier (11-06 11:30Z, -28 %) lost 88 s of samples to ring drops when the box was overloaded during the run |
+| the same, before warm-up (first-minutes window of 2-9 min) | hum captures **not** within 2 %: +13 % to +80 % per capture (pooled +3.3 %, which hid it), dense hum too (10-20 09:30Z, about 117 per min, +23 %), and 94 minutes batch calls untrusted came out trusted. An earlier version of this README said only sparse-hum captures (5-18 per min) differed; that was wrong |
+| CPU per minute of signal | 3.0-3.4 s (worker + main): every minute is now gated on a full 10-min window. That is about 6 % of one core at real time |
+| memory | worker about 0.2 GB between minutes and 1.6 GB peak for about 1 s per minute (the 10-min gate window); the daemon process holds 0.1-0.24 GB, most of it the bounded ring and queue buffers |
+
+Steady state cannot be checked against batch with the corpus: no capture is
+longer than 10 minutes. Live, minute c is gated on minutes c-8 ... c+1. A
+buzz train that starts in the minutes after c+1 is invisible to it, while
+batch saw the whole file. Between gaps the live window is as long as the
+batch one, but it is placed differently.
+
+Alert replay over the corpus (150 captures, 25 h of signal, 4 nights, the
+live daemon itself): the level left quiet at 11-06 04:07Z (active) and
+04:37Z (storm). GOES GLM matched lightning rose from 2-4 to 65-260 per
+minute exactly then, so both were real. No rise without a GLM surge in
+25 h, i.e. an observed false-alert rate of 0 per day (with so few hours, an
+upper bound of about 3 per day). The level stepped down to active at 06:35Z
+because the hum-gated 06:30Z capture left too few trusted minutes to read;
+it now says so instead of holding a level it cannot see. Not caught: 10-20
+08-11Z had 50-90 GLM-matched per minute all night long, so its own baseline
+was already high. The level is relative: it says "much more than usual",
+not "lightning nearby".
+
+### Stress test (`bench/stress_live.py`, mock radio only, 2026-11-15, repair round)
+
+| | target | measured | |
+|---|---|---|---|
+| soak A: all 150 captures, time order, 15x | no crash | 25 h of signal in 100 min, rc 0, 1497 minutes, 101 458 events, 0 chain errors, 0 bad lines, heartbeat never older than 5.5 s. 84 ring drops (88 s of one capture) while the test suite ran on the same box: at 15x the chain now needs 0.74 core, so there is little headroom left | pass (drops caused by the test setup) |
+| soak A, alone: 40 captures (6.7 h), 10x | RSS growth < 20 MB | daemon 108 -> 111 MB (+3). Chain worker: no ratchet any more; its per-10-min floor moves between 104 and 209 MB with no trend (25 h run: first hour 173, last 177 MB). Before: steps from 254 to 463 MB. 0 ring drops; lag behind the input 17 -> 22 s of wall time (max 27 s). 400 of 400 minutes and every event equal to batch | pass |
+| CPU | report | 2.7-3.0 s per signal minute; 0.05 s of that in the daemon process | |
+| faults C: overflow bursts, device gone 5 and 60 s, timeouts, short reads, dropped and duplicated samples, host clock +-2 s and +-1 h, disk blocked 30 s at 10x and at 1x, disk low, ENOSPC, SIGTERM, SIGKILL + restart (with a torn line and a NUL block), second instance, dlayer_run running at start or started later, a dead and a clipped front end, worker SIGKILLed 4 times, daemon SIGKILLed 6 times, everything mixed | no crash, gaps honest, no fake events | all rc 0, 3 or 1 as intended. Every hole in `minutes.jsonl` has its gap row (mixed: 9 of 9, reasons overflows, timeouts, read errors, clock steps, ring drops, not written). Near segment edges there are fewer events than without the fault, never more. The worker's death ends the daemon in 1 s (rc 1); a SIGKILLed daemon leaves no worker. A later dlayer_run makes the watcher yield in 4 s (rc 3). Dead or clipped minutes are untrusted | pass |
+| alerts D vs GOES GLM (25 h soak) | list, check | rises at 11-06 04:07Z (active) and 04:37Z (storm), both with 5-7 GLM flashes/min within 1000 km; 0 false rises (95 % bound 2.9 per day). New: storm -> active at 06:35Z, after 15 minutes with too few trusted minutes (the 06:30Z capture is gated), where the old run held "storm" until 16:36Z | pass |
+
+Fixed in this round:
+- a SIGKILLed daemon could leave its chain worker blocked for ever in a
+  half-read pipe message;
+- a dead worker could hang the daemon (in `_send`, or at exit joining the
+  queue thread), and the exit then aborted with a core dump;
+- dead, swamped or clipped input counted as trusted quiet sky;
+- the storm level rose on stale re-checks and never decayed without
+  trusted minutes; it is now restored on restart;
+- a NUL block inside a `.jsonl` file survived a restart;
+- the anchor after a gap was late by one read's jitter;
+- `clock_drift_ppm` decayed after a re-anchor;
+- `python3 -X dev -u dlayer_run.py` went unseen, and so did a dlayer_run
+  started after the watcher;
+- the live raw sidecars were replayed 26 ms late;
+- a looping mock on an empty file spun for ever;
+- the worker's memory floor ratcheted up;
+- gaps had no rows;
+- cold gate windows after every gap.
+
+Known, not fixed:
+- **The event set depends on the phase of the 1 s frames.** Batch on the same capture
+  started at a whole second keeps 99.5 % of its events. Started at any other
+  sample offset, only about a third of the events fall within 1 ms, at the
+  same count. The live default `--align utc` keeps every segment on whole UTC
+  seconds; the mock's `align=start` does not. Minute rates move by a median
+  5-13 % after a phase change.
+- Warm-up costs delay after every start or gap (minute 0 is written about
+  11 minutes after it began). If the real radio overflowed every few
+  minutes, every minute would wait for its segment's end.
+- After a host clock step the minute times follow the host clock; +-1 h
+  leaves a hole of an hour and one step back in time.
+- A `--radio mock` run takes no lock, so it can write into a running watcher's state dir.
+- Segment numbers restart at 0 after a restart.
+
+Open, found by the independent verifier after the repair round (not fixed
+yet; fix these before running it unattended under systemd):
+- **systemd stop loses the backlog.** systemd's default stop sends SIGTERM to
+  the whole process group, and the chain worker dies at once. The minutes
+  still waiting in the warm-up and look-ahead window are lost, and the run
+  still reports rc 0 with no error. Stopping the daemon process alone
+  (Ctrl-C, or `kill` on its pid) is fine. Fix: ignore SIGTERM in the worker,
+  or `KillMode=mixed` in the unit.
+- **The reopen wait never resets.** After a stream that ran well, the wait
+  before a reopen does not go back to 1 s. Rare, widely spaced driver errors
+  climb 1, 2, 4 ... 60 s. From the 7th one on, every hiccup costs at least
+  60 s of data.
+- **A read that never returns is never recovered.** If the USB driver
+  wedges inside a read, the watchdog asks for a reopen that never happens.
+  The daemon stays `stalled` for ever and does not exit, so systemd's
+  `Restart=on-failure` never fires.
+- **A part-written line during a run.** If the disk fills in the middle of
+  a write, a torn line stays, and the next write is glued onto it (one
+  corrupt line). This is repaired only at the next start.
+- A forward host-clock jump of more than 30 days would prune the whole
+  archive. A kill during rotation onto an existing archive file can
+  duplicate that day's rows.
+- A mock file that does not exist makes the mock retry for ever instead of
+  failing.
+
 ## The panel
 
 ```bash
 python tools/storm_panel.py --session <session-dir>
+python tools/storm_panel.py --live [state-dir]     # the live watcher's minutes + storm level
 # -> http://127.0.0.1:8647
 ```
 
@@ -243,7 +440,7 @@ Boltek-class commercial single-station detectors (crossed-loop bearing —
 the natural hardware upgrade for this project).
 
 ## Roadmap
-- fix the false-train bug in the mains gate, then a live daemon
+- run the live watcher on the radio itself (built, mock-tested)
 - outside truth before any alert
 - capture chain moves in-repo (today it rides the fleet's storm_watch)
 - crossed-loop antenna → bearing → a real single-station storm plot

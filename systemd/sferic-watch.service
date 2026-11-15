@@ -1,0 +1,39 @@
+# sferic-watch live storm watcher, as a systemd --user service. NOT installed or enabled by anything in this repo.
+#
+# The watcher owns the SDR while it runs (radio lock ~/.local/state/radio.lock). It refuses to start (exit 3) when
+# the lock is held or dlayer_run.py is running: one radio, one program. Stop the other program first.
+#
+# Install by hand when wanted:
+#   mkdir -p ~/.config/systemd/user
+#   cp systemd/sferic-watch.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#   systemctl --user start sferic-watch        # and "enable" only if it should start at login
+#   journalctl --user -u sferic-watch -f
+#
+# Paths assume the repo at ~/Projects/sferic-watch and the venv at ~/Projects/.venv; edit both lines if not.
+# Output: ~/.local/state/sferic-watch (state.json, minutes.jsonl, events.jsonl, alerts.jsonl).
+
+[Unit]
+Description=sferic-watch live storm watcher (VLF sferics, SDRplay RSPdx)
+Documentation=file://%h/Projects/sferic-watch/README.md
+
+[Service]
+KillMode=mixed
+Type=simple
+WorkingDirectory=%h/Projects/sferic-watch
+Environment=PYTHONUNBUFFERED=1
+ExecStart=%h/Projects/.venv/bin/python -m sferic_watch live --radio soapy --antenna "Antenna C"
+# SIGTERM: the daemon closes the stream, commits what it holds and flushes its files (a few s of CPU).
+KillSignal=SIGTERM
+TimeoutStopSec=120
+Restart=on-failure
+RestartSec=30
+# exit 3 = radio busy (lock held or dlayer_run.py running): do not keep retrying against the other program
+RestartPreventExitStatus=3
+# measured: about 1.7 GB peak with the default 10-minute gate window, ~0.06 core
+MemoryMax=3G
+Nice=10
+CPUQuota=100%
+
+[Install]
+WantedBy=default.target
